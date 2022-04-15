@@ -2,17 +2,91 @@
 {
 	using IotManagerBusiness.Configuration;
 	using IotManagerBusiness.Entities.BekoLLC;
+	using IotManagerBusiness.Entities.Etiket;
 	using IotManagerBusiness.Enums;
 
 	using System;
-	using System.Data;
+	using System.Collections.Generic;
 	using System.Linq;
 
 	internal class DataOperations
 	{
-		public string ConnectionString { get; set; }
+		private readonly List<string> AtrCodes = new List<string> { "F481_605", "F2119_4334977" };
+
+		private readonly string ConnectionString;
 
 		public DataOperations(string env) => ConnectionString = env.Equals("PROD") ? "DBConnectionString" : "testDBConnectionString";
+
+		public void DeleteFromBarcodeTables(ProductType productType, string cardBarcode) => SafeExecuteSqlRequest(context =>
+			context.TKktsConnectedDisplayCards.Where(x => x.Line == (int)productType && x.DisplayCard.Equals(cardBarcode)).AsParallel().ForAll(x => context.TKktsConnectedDisplayCards.Remove(x)));
+
+		public void InsertIntoBarcodeTables(ProductType productType, string card, string product, string serial) => SafeExecuteSqlRequest(context =>
+			context.TKktsConnectedDisplayCards.Add(new TKktsConnectedDisplayCard(product, serial, (int)productType, card, 1)));
+
+		public void InsertIntoQueueTable(ProductType productType, string card, string product, string serial, bool isInstant) => SafeExecuteSqlRequest(context =>
+			context.TKktsConnectedDisplayCards.Add(new TKktsConnectedDisplayCard(product, serial, (int)productType, card, isInstant ? 1 : 0)));
+
+		public void UpdateStateDisplayCard(string product, string serial, string card, int state) => SafeExecuteSqlRequest(context =>
+		{
+			var displayCard = context.TKktsConnectedDisplayCards.FirstOrDefault(x => x.Product.Equals(product) && x.Serial.Equals(serial) && x.DisplayCard.Equals(card));
+			if (displayCard != null)
+				displayCard.RegisterState = state;
+		});
+
+		public void LogOperation(string logType, string logStatus, string logText, string logOperator) => SafeExecuteSqlRequest(context =>
+			context.Database.ExecuteSqlCommand($"INSERT INTO [dbo].[T_KKTS_IOT_LOG] (LogType, LogStatus, LogText, LogOperator) VALUES ('{logType}', '{logStatus}','{logText}','{logOperator}')"));
+
+		public Dictionary<string, string> GetElectronicCard(ProductType type, string product, string serial)
+		{
+			var dict = new Dictionary<string, string>()
+			{
+				{"ProductNumber", string.Empty},
+				{"ProductCardMaterial", string.Empty},
+				{"ProductCardBarcode", string.Empty},
+				{"ProductCardModel", string.Empty}
+			};
+
+			using (var context = new BekoLLCSQLContext(ConnectionString))
+			{
+				switch (type)
+				{
+					case ProductType.REF:
+						var rf = context.KkiMatches.Where(x => x.Componentcode.Equals(Settings.RFWifiCode) && x.Barcode.Length == Settings.CardLength && x.Serial.Equals(serial) && x.Product.Equals(product));
+						var rfCount = rf.Count();
+						if (rfCount != 1)
+							throw new Exception(rfCount == 0 ? "Card info not found." : "Multiple card info found.");
+
+						var match = rf.First();
+						if (match.Product != null) dict["ProductNumber"] = match.Product;
+						if (match.Material != null) dict["ProductCardMaterial"] = match.Material;
+						if (match.Barcode != null) dict["ProductCardBarcode"] = match.Barcode;
+						if (match.Model != null) dict["ProductCardModel"] = match.Model;
+						return dict;
+					case ProductType.WM:
+						var wm = context.TKktsConnectedDisplayCards.Where(x => x.Serial.Equals(serial) && x.Product.Equals(product));
+						var wmCount = wm.Count();
+						if (wmCount != 1)
+							throw new Exception(wmCount == 0 ? "Card info not found." : "Multiple card info found.");
+
+						var card = wm.First();
+						if (card.Product != null) dict["ProductNumber"] = card.Product;
+						if (card.DisplayCard != null) dict["ProductCardBarcode"] = card.DisplayCard;
+						return dict;
+
+					default:
+						return dict;
+				}
+			}
+		}
+
+		public List<TAtrValueTrTr> GetProductData(string productNumber)
+		{
+			using (var context = new EtiketContext(ConnectionString))
+			{
+				var value = context.TAtrValueTrTrs.Where(x => x.SkuNumber.Equals(productNumber) && AtrCodes.Contains(x.AtrCode));
+				return value.ToList();
+			}
+		}
 
 		private void SafeExecuteSqlRequest(Action<BekoLLCSQLContext> action)
 		{
@@ -24,74 +98,10 @@
 					context.SaveChanges();
 				}
 			}
-			catch 
+			catch
 			{
 				// TODO: Add logging
 			}
-		}
-
-		public void DeleteFromBarcodeTables(ProductType productType, string cardBarcode) => SafeExecuteSqlRequest(context =>
-		{
-			foreach (var row in context.TKktsConnectedDisplayCards.Where(x => x.Line == (int)productType && x.DisplayCard.Equals(cardBarcode)))
-			{
-				context.TKktsConnectedDisplayCards.Remove(row);
-			}
-		});
-
-		public void InsertIntoBarcodeTables(ProductType productType, string card, string product, string serial) => SafeExecuteSqlRequest(context =>
-		{
-			var displayCard = new TKktsConnectedDisplayCard(product, serial, (int)productType, card, 1);
-			context.TKktsConnectedDisplayCards.Add(displayCard);
-		});
-
-		public void InsertIntoQueueTable(ProductType productType, string card, string product, string serial, bool isInstant) => SafeExecuteSqlRequest(context =>
-		{
-			var displayCard = new TKktsConnectedDisplayCard(product, serial, (int)productType, card, isInstant ? 1 : 0);
-			context.TKktsConnectedDisplayCards.Add(displayCard);
-		});
-
-		public void UpdateStateDisplayCard(string product, string serial, string card, int state) => SafeExecuteSqlRequest(context =>
-		{
-			var displayCard = context.TKktsConnectedDisplayCards.FirstOrDefault(x => x.Product.Equals(product) && x.Serial.Equals(serial) && x.DisplayCard.Equals(card));
-			if (displayCard != null)
-			{
-				displayCard.RegisterState = state;
-				context.SaveChanges();
-			}
-		});
-
-		public void LogOperation(string logType, string logStatus, string logText, string logOperator) => SafeExecuteSqlRequest(context =>
-			context.Database.ExecuteSqlCommand($"INSERT INTO [dbo].[T_KKTS_IOT_LOG] (LogType, LogStatus, LogText, LogOperator) VALUES ('{logType}', '{logStatus}','{logText}','{logOperator}')"));
-
-		public DataTable GetElectronicCard(string productSerial)
-		{
-			var productDet = productSerial.Split('#');
-			var sqlQuery = string.Empty;
-
-			if (productDet[0].Equals("WM"))
-			{
-				sqlQuery = "SELECT 'WM' AS [ProductType], PRODUCT AS [ProductNumber], SERIAL AS [ProductSerial]" +
-				", NULL AS [ProductCardMaterial], [DISPLAY_CARD] AS [ProductCardBarcode], NULL AS [ProductCardModel] " +
-				" FROM [BekoLLCSQL].[dbo].[T_KKTS_CONNECTED_DISPLAY_CARD] WITH (NOLOCK) " +
-				$" WHERE [LINE] = 2 AND SERIAL = '{productDet[1]}' AND PRODUCT = '{productDet[2]}'";
-			}
-			else if (productDet[0].Equals("REF"))
-			{
-				sqlQuery = "SELECT 'REF' AS [ProductType], [PRODUCT] AS [ProductNumber], [SERIAL] AS [ProductSerial], [MATERIAL] AS [ProductCardMaterial]" +
-				", [BARCODE] AS [ProductCardBarcode], [MODEL] AS [ProductCardModel] " +
-				" FROM [BekoLLCSQL].[dbo].[KKI_MATCH] WITH (NOLOCK) " +
-				$" WHERE COMPONENTCODE = '{Settings.RFWifiCode}' AND LEN(BARCODE) = {Settings.CardLength} AND SERIAL = '{productDet[1]}' AND PRODUCT = '{productDet[2]}'";
-			}
-
-			var DbL = new DbLayer(ConnectionString);
-			return DbL.GetDataTable(sqlQuery, CommandType.Text);
-		}
-
-		public DataTable GetProductData(string productNumber)
-		{
-			var DbL = new DbLayer(ConnectionString);
-			return DbL.GetDataTable($"SELECT [SKUNUMBER],[RECORDID],[ATR_TYPE],[ATR_CODE],[ATR_VALUE_MDM] FROM [ETIKET].[dbo].[T_ATR_VALUE_tr_TR] WITH (NOLOCK) " +
-				$"WHERE SKUNUMBER = '{productNumber}' AND ATR_CODE in ('F481_605','F2119_4334977')", CommandType.Text);
 		}
 	}
 }

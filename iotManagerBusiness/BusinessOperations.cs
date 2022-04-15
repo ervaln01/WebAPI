@@ -4,113 +4,72 @@
 	using IotManagerBusiness.Exceptions;
 
 	using System;
+	using System.Collections.Generic;
 	using System.Linq;
 
 	public class BusinessOperations
 	{
-		public string Environment { get; set; }
+		private readonly string Environment;
 
 		public BusinessOperations(string env) => Environment = env;
 
-		public void DeAttachElectronicCard(ProductType productType, string productNumber, string cardBarcode, string productSerial, string operatingUser)
+		public void DeAttachElectronicCard(ProductType productType, string product, string card, string serial, string user) => SafeAttaching(operation =>
 		{
-			var dop = new DataOperations(Environment);
+			var sop = new ServiceOperations(Environment);
+			var res = sop.DeAttachProductCardData(product, card, serial);
+			if (res.Status != StatusType.Success)
+				throw new AzureException($"Error during deattachment. Status code: {res.Status} - Message: {res.Message}");
 
-			try
-			{
-				var sop = new ServiceOperations(Environment);
-				var res = sop.DeAttachProductCardData(productNumber, cardBarcode, productSerial);
-				if (res.Status != StatusType.Success) throw new AzureException($"Error during deattachment. Status code: {res.Status} - Message: {res.Message}");
+			operation.DeleteFromBarcodeTables(productType, card);
+		}, "DeAttach", card, serial, user);
 
-				dop.DeleteFromBarcodeTables(productType, cardBarcode);
-				dop.LogOperation("DeAttach", "S", $"Deattach successful. Card: {cardBarcode}- Product: {productSerial}", operatingUser);
-			}
-			catch (Exception ex)
-			{
-				dop.LogOperation("DeAttach", "E", $"Deattach Error. Card: {cardBarcode}- Product: {productSerial} ERR:{ex.Message}", operatingUser);
-				throw;
-			}
-		}
-
-		public void AttachElectronicCard(ProductType productType, string newCardBarcode, string productNumber, string productSerial, string operatingUser, bool cardExistsinDB)
+		public void AttachElectronicCard(ProductType productType, string newCardBarcode, string productNumber, string productSerial, string operatingUser, bool cardExistsinDB) => SafeAttaching(operation =>
 		{
-			var dop = new DataOperations(Environment);
+			var productData = GetProductDetails(productNumber);
+			var sop = new ServiceOperations(Environment);
+			var res = sop.AttachProductCardData(productType, productNumber, newCardBarcode, productSerial, productData[0], productData[1]);
+			if (res.Status != StatusType.Success)
+				throw new AzureException($"Error during attachment. Status code: {res.Status} - Message: {res.Message}");
 
-			try
+			if (cardExistsinDB)
 			{
-				var productData = GetProductDetails(productNumber);
-				var sop = new ServiceOperations(Environment);
-				var res = sop.AttachProductCardData(productType, productNumber, newCardBarcode, productSerial, productData[0], productData[1]);
-				if (res.Status != StatusType.Success) throw new AzureException($"Error during attachment. Status code: {res.Status} - Message: {res.Message}");
-
-				if (cardExistsinDB)
-				{
-					dop.InsertIntoQueueTable(productType, newCardBarcode, productNumber, productSerial, true);
-				}
-				else
-				{
-					dop.InsertIntoBarcodeTables(productType, newCardBarcode, productNumber, productSerial);
-				}
-
-				dop.LogOperation("Attach", "S", $"Attach successful. Card: {newCardBarcode}- Product: {productSerial}", operatingUser);
+				operation.InsertIntoQueueTable(productType, newCardBarcode, productNumber, productSerial, true);
+				return;
 			}
-			catch (Exception ex)
-			{
-				dop.LogOperation("Attach", "E", $"Attach Error. Card: {newCardBarcode}- Product: {productSerial} ERR:{ex.Message}", operatingUser);
-				throw;
-			}
-		}
+			
+			operation.InsertIntoBarcodeTables(productType, newCardBarcode, productNumber, productSerial);
+		}, "Attach", newCardBarcode, productSerial, operatingUser);
 
-		public void AttachElectronicCardFromProduction(ProductType productType, string productNumber, string productSerial, IntegrationType integrationType, string operatingUser)
+		public void AttachElectronicCardFromProduction(ProductType productType, string productNumber, string productSerial, IntegrationType integrationType, string operatingUser) => SafeAttaching(operation =>
 		{
-			var dop = new DataOperations(Environment);
+			var cardData = GetCardDetails(productType, productNumber, productSerial);
+			var productData = GetProductDetails(cardData["ProductNumber"]);
 
-			try
+			switch (integrationType)
 			{
-				var cardData = GetCardDetails(productType, productNumber, productSerial);
-				var productData = GetProductDetails(cardData[0]);
+				case IntegrationType.Instant:
+					var sop = new ServiceOperations(Environment);
+					var res = sop.AttachProductCardData(productType, cardData["ProductNumber"], cardData["ProductCardBarcode"], productSerial, productData[0], productData[1]);
+					if (res.Status != StatusType.Success) 
+						throw new AzureException($"Error during attachment. Status code: {res.Status} - Message: {res.Message}");
 
-				switch (integrationType)
-				{
-					case IntegrationType.Instant:
-						var sop = new ServiceOperations(Environment);
-						var res = sop.AttachProductCardData(productType, cardData[0], cardData[2], productSerial, productData[0], productData[1]);
-						if (res.Status != StatusType.Success) throw new AzureException($"Error during attachment. Status code: {res.Status} - Message: {res.Message}");
-
-						dop.InsertIntoQueueTable(productType, cardData[2], cardData[0], productSerial, true);
-						break;
-					case IntegrationType.Queue:
-						dop.InsertIntoQueueTable(productType, cardData[2], cardData[0], productSerial, false);
-						break;
-					default:
-						throw new Exception("Undefined integration type.");
-				}
-
-				dop.LogOperation("AttachFromProduction", "S", $"Attach successful. Card: {cardData[2]}- Product: {productSerial}", operatingUser);
+					operation.InsertIntoQueueTable(productType, cardData["ProductCardBarcode"], cardData["ProductNumber"], productSerial, true);
+					break;
+				case IntegrationType.Queue:
+					operation.InsertIntoQueueTable(productType, cardData["ProductCardBarcode"], cardData["ProductNumber"], productSerial, false);
+					break;
+				default:
+					throw new Exception("Undefined integration type.");
 			}
-			catch (Exception ex)
-			{
-				dop.LogOperation("AttachFromProduction", "E", $"Attach Error. Product: {productSerial} ERR:{ex.Message}", operatingUser);
-				throw;
-			}
-		}
+		}, "AttachFromProduction", string.Empty, productNumber, operatingUser);
 
-		public void UpdateErrorDisplayCard(ProductType productType, string product, string serial, string operatingUser, string card = "")
+		public void UpdateErrorDisplayCard(ProductType productType, string product, string serial, string operatingUser, string card = "") => SafeAttaching(operation =>
 		{
-			var dop = new DataOperations(Environment);
-			if (string.IsNullOrEmpty(card)) 
-				card = GetCardDetails(productType, product, serial)[2];
+			if (string.IsNullOrEmpty(card))
+				card = GetCardDetails(productType, product, serial)["ProductCardBarcode"];
 
-			try
-			{
-				dop.UpdateStateDisplayCard(product, serial, card, 2);
-				dop.LogOperation("UpdateErrorDisplayCard", "S", $"Update successful. Product: {product}", operatingUser);
-			}
-			catch (Exception ex)
-			{
-				dop.LogOperation("UpdateErrorDisplayCard", "E", "UpdateErrorDisplayCard Error.", ex.Message);
-			}
-		}
+			operation.UpdateStateDisplayCard(product, serial, card, 2);
+		}, "UpdateErrorDisplayCard", card, product, operatingUser);
 
 		public string[] GetProductDetails(string productNumber)
 		{
@@ -119,22 +78,19 @@
 			try
 			{
 				var productDT = dop.GetProductData(productNumber);
-				if (productDT.Rows.Count != 2)
-				{
+				if (productDT.Count != 2)
 					throw new Exception("Product connectivitiy or brand info not found.");
-				}
-				else
-				{
-					var productData = new string[]
-					{
-						ConvertToCamelCase(productDT.Select("ATR_CODE = 'F481_605'").FirstOrDefault()?["ATR_VALUE_MDM"].ToString()),
-						productDT.Select("ATR_CODE = 'F2119_4334977'").FirstOrDefault()?["ATR_VALUE_MDM"].ToString()
-					};
 
-					return new string[] { string.Empty, "NA", "No" }.Contains(productData[1]) ?
-						throw new Exception("Product is not a connected model.") :
-						productData;
-				}
+
+				var productData = new string[]
+				{
+					ConvertToCamelCase(productDT.FirstOrDefault(x => x.AtrCode.Equals("F481_605"))?.AtrValueMdm),
+					productDT.FirstOrDefault(x => x.AtrCode.Equals("F2119_4334977"))?.AtrValueMdm
+				};
+
+				return new string[] { string.Empty, "NA", "No" }.Contains(productData[1]) ?
+					throw new Exception("Product is not a connected model.") :
+					productData;
 			}
 			catch (Exception ex)
 			{
@@ -142,35 +98,41 @@
 				throw;
 			}
 		}
-		public string[] GetCardDetails(ProductType productType, string productNumber, string productSerial)
+		public bool IsProductConnected(string productNumber)
+		{
+			GetProductDetails(productNumber);
+			return true;
+		}
+
+		private void SafeAttaching(Action<DataOperations> operation, string method, string card, string product, string user)
+		{
+			var dop = new DataOperations(Environment);
+			try
+			{
+				operation(dop);
+				dop.LogOperation(method, "S", $"{method} successful. Card: {card} - Product: {product}", user);
+			}
+			catch (Exception ex)
+			{
+				dop.LogOperation(method, "E", $"{method} error. Card: {card} - Product: {product} - Error:{ex.Message}", user);
+				throw;
+			}
+		}
+
+		private Dictionary<string, string> GetCardDetails(ProductType productType, string productNumber, string productSerial)
 		{
 			var dop = new DataOperations(Environment);
 
 			try
 			{
-				var cardDT = dop.GetElectronicCard($"{productType}#{productSerial}#{productNumber}");
-
-				return cardDT.Rows.Count != 1 ?
-					throw new Exception(cardDT.Rows.Count == 0 ? "Card info not found." : "Multiple card info found.") :
-					new string[]
-					{
-						cardDT.Rows[0]["ProductNumber"].ToString(),
-						cardDT.Rows[0].IsNull("ProductCardMaterial") ? string.Empty : cardDT.Rows[0]["ProductCardMaterial"].ToString(),
-						cardDT.Rows[0]["ProductCardBarcode"].ToString(),
-						cardDT.Rows[0].IsNull("ProductCardModel") ? string.Empty : cardDT.Rows[0]["ProductCardModel"].ToString()
-					};
+				var cardDT = dop.GetElectronicCard(productType, productSerial,productNumber);
+				return cardDT;
 			}
 			catch (Exception ex)
 			{
 				dop.LogOperation("GetCardDetails", "E", "Card data not found.", ex.Message);
 				throw;
 			}
-		}
-
-		public bool IsProductConnected(string productNumber)
-		{
-			GetProductDetails(productNumber);
-			return true;
 		}
 
 		private string ConvertToCamelCase(string inputString) =>
