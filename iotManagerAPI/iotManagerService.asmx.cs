@@ -18,7 +18,7 @@
 		private string Environment => ConfigurationManager.AppSettings["ENV"];
 
 		[WebMethod]
-		public Response<bool> AttachElectronicCard(ProductType productType, string productNumber, string productSerial, string cardMaterial, string cardBarcode, string cardModel, string operatingUser)
+		public Response<bool> AttachCard(ProductType productType, string productNumber, string productSerial, string cardMaterial, string cardBarcode, string cardModel, string operatingUser)
 		{
 			var bop = new BusinessOperations(Environment);
 
@@ -30,15 +30,8 @@
 			catch (AzureException ex)
 			{
 				bop.UpdateErrorDisplayCard(productType, productNumber, productSerial, operatingUser, cardBarcode);
-				var message = $"Не удалось отправить в Azure данные по продукту product {productNumber}, serial {productSerial}.<br>" +
-					$"Дата записи {DateTime.Now:dd.MM.yyyy HH:mm:ss}.<br>" +
-					$"Требуется отправить данные вручную.<br><br>" +
-					$"-----------------------------------<br><br>" +
-					$"Информация для разработчиков:<br>" +
-					$"Method AttachElectronicCard, productType {productType}, cardMaterial {cardMaterial}, cardBarcode {cardBarcode}, cardModel {cardModel}, operatingUser {operatingUser}<br>" +
-					$"Exception message:<br>{ex.Message}<br>" +
-					$"StackTrace:<br>{ex.StackTrace}";
-				Task.Run(() => MailSender.SendMail(productType, message));
+				var message = GetErrorMessage("AttachElectronicCard", productNumber, productSerial, operatingUser, productType, ex);
+				_ = Task.Run(() => MailSender.SendMail(productType, message));
 				return new Response<bool>(false, StatusType.Error, ex.Message);
 			}
 			catch (Exception ex)
@@ -48,7 +41,7 @@
 		}
 
 		[WebMethod]
-		public Response<bool> DeAttachElectronicCard(ProductType productType, string productNumber, string cardBarcode, string productSerial, string operatingUser)
+		public Response<bool> DeAttachCard(ProductType productType, string productNumber, string cardBarcode, string productSerial, string operatingUser)
 		{
 			var bop = new BusinessOperations(Environment);
 
@@ -59,15 +52,8 @@
 			}
 			catch (AzureException ex)
 			{
-				var message = $"Не удалось отправить в Azure данные по продукту product {productNumber}, serial {cardBarcode}.<br>" +
-					$"Дата записи {DateTime.Now:dd.MM.yyyy HH:mm:ss}.<br>" +
-					$"Требуется отправить данные вручную.<br><br>" +
-					$"-----------------------------------<br><br>" +
-					$"Информация для разработчиков:<br>" +
-					$"Method DeAttachElectronicCard, productType {productType}, cardBarcode {cardBarcode}, operatingUser {operatingUser}<br>" +
-					$"Exception message:<br>{ex.Message}<br>" +
-					$"StackTrace:<br>{ex.StackTrace}";
-				Task.Run(() => MailSender.SendMail(productType, message));
+				var message = GetErrorMessage("DeAttachElectronicCard", productNumber, productSerial, operatingUser, productType, ex);
+				_ = Task.Run(() => MailSender.SendMail(productType, message));
 				return new Response<bool>(false, StatusType.Error, ex.Message);
 			}
 			catch (Exception ex)
@@ -77,7 +63,7 @@
 		}
 
 		[WebMethod]
-		public Response<bool> AttachElectronicCardFromProduction(ProductType productType, string productNumber, string productSerial, IntegrationType integrationType, string operatingUser)
+		public Response<bool> AttachCardFromProduction(ProductType productType, string productNumber, string productSerial, IntegrationType integrationType, string operatingUser)
 		{
 			var bop = new BusinessOperations(Environment);
 
@@ -89,15 +75,8 @@
 			catch (AzureException ex)
 			{
 				bop.UpdateErrorDisplayCard(productType, productNumber, productSerial, operatingUser);
-				var message = $"Не удалось отправить в Azure данные по продукту product {productNumber}, serial {productSerial}.<br>" +
-					$"Дата записи {DateTime.Now:dd.MM.yyyy HH:mm:ss}.<br>" +
-					$"Требуется отправить данные вручную.<br><br>" +
-					$"-----------------------------------<br><br>" +
-					$"Информация для разработчиков:<br>" +
-					$"Method AttachElectronicCardFromProduction, productType {productType}, integrationType {integrationType}, operatingUser {operatingUser}<br>" +
-					$"Exception message:<br>{ex.Message}<br>" +
-					$"StackTrace:<br>{ex.StackTrace}";
-				Task.Run(() => MailSender.SendMail(productType, message));
+				var message = GetErrorMessage("AttachElectronicCardFromProduction", productNumber, productSerial, operatingUser, productType, ex);
+				_ = Task.Run(() => MailSender.SendMail(productType, message));
 				return new Response<bool>(false, StatusType.Error, ex.Message);
 			}
 			catch (Exception ex)
@@ -121,5 +100,15 @@
 				return new Response<bool>(false, StatusType.Error, ex.Message);
 			}
 		}
+
+		private string GetErrorMessage(string method, string product, string serial, string user, ProductType productType, Exception ex) =>
+			$"Не удалось отправить в Azure данные по продукту product {product}, serial {serial}.<br>" +
+			$"Дата записи {DateTime.Now:dd.MM.yyyy HH:mm:ss}.<br>" +
+			$"Требуется отправить данные вручную.<br><br>" +
+			$"-----------------------------------<br><br>" +
+			$"Информация для разработчиков:<br>" +
+			$"Method {method}, productType {productType}, operatingUser {user}<br>" +
+			$"Exception message:<br>{ex.Message}<br>" +
+			$"StackTrace:<br>{ex.StackTrace}";
 	}
 }

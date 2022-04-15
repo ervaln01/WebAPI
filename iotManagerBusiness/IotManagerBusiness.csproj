@@ -56,7 +56,6 @@
     <Compile Include="Exceptions\AzureException.cs" />
     <Compile Include="BusinessOperations.cs" />
     <Compile Include="DataOperations.cs" />
-    <Compile Include="DbLayer.cs" />
     <Compile Include="Enums\IntegrationType.cs" />
     <Compile Include="Enums\ProductType.cs" />
     <Compile Include="Models\Response.cs" />
