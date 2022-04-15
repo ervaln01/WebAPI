@@ -15,11 +15,12 @@
 	[System.ComponentModel.ToolboxItem(false)]
 	public class IotManagerService : WebService
 	{
+		private string Environment => ConfigurationManager.AppSettings["ENV"];
 
 		[WebMethod]
 		public Response<bool> AttachElectronicCard(ProductType productType, string productNumber, string productSerial, string cardMaterial, string cardBarcode, string cardModel, string operatingUser)
 		{
-			var bop = new BusinessOperations(ConfigurationManager.AppSettings["ENV"].ToString());
+			var bop = new BusinessOperations(Environment);
 
 			try
 			{
@@ -49,7 +50,7 @@
 		[WebMethod]
 		public Response<bool> DeAttachElectronicCard(ProductType productType, string productNumber, string cardBarcode, string productSerial, string operatingUser)
 		{
-			var bop = new BusinessOperations(ConfigurationManager.AppSettings["ENV"].ToString());
+			var bop = new BusinessOperations(Environment);
 
 			try
 			{
@@ -78,7 +79,7 @@
 		[WebMethod]
 		public Response<bool> AttachElectronicCardFromProduction(ProductType productType, string productNumber, string productSerial, IntegrationType integrationType, string operatingUser)
 		{
-			var bop = new BusinessOperations(ConfigurationManager.AppSettings["ENV"].ToString());
+			var bop = new BusinessOperations(Environment);
 
 			try
 			{
@@ -108,7 +109,7 @@
 		[WebMethod]
 		public Response<bool> IsProductConnected(string productNumber)
 		{
-			var bop = new BusinessOperations(ConfigurationManager.AppSettings["ENV"].ToString());
+			var bop = new BusinessOperations(Environment);
 
 			try
 			{

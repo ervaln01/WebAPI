@@ -2,7 +2,7 @@
 {
 	public enum ProductType
 	{
-		WM,
-		REF
+		REF = 1,
+		WM = 2
 	}
 }
