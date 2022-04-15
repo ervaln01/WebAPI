@@ -1,4 +1,4 @@
-﻿namespace IotManagerBusiness
+﻿namespace IotManagerBusiness.Exceptions
 {
 	using System;
 

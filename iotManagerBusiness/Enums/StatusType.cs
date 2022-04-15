@@ -1,6 +1,6 @@
-﻿namespace IotManagerBusiness
+﻿namespace IotManagerBusiness.Enums
 {
-	public enum ReturnTypeStatus
+	public enum StatusType
 	{
 		Success = 1,
 		Error = 2,

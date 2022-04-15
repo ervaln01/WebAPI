@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ReferenceGroup xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" ID="25246f76-9d7f-4675-a26c-1cf970b9e60d" xmlns="urn:schemas-microsoft-com:xml-wcfservicemap">
+<ReferenceGroup xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" ID="974f9f2c-9d38-49b7-a0a9-47a3a121ec92" xmlns="urn:schemas-microsoft-com:xml-wcfservicemap">
   <ClientOptions>
     <GenerateAsynchronousMethods>false</GenerateAsynchronousMethods>
     <GenerateTaskBasedAsynchronousMethod>true</GenerateTaskBasedAsynchronousMethod>
@@ -22,8 +22,8 @@
     <MetadataSource Address="http://brnet/ws_sendmessage/sendmessage.asmx" Protocol="http" SourceId="1" />
   </MetadataSources>
   <Metadata>
-    <MetadataFile FileName="sendmessage.wsdl" MetadataType="Wsdl" ID="4bd22bef-23fc-481d-a92c-3c84879bac15" SourceId="1" SourceUrl="http://brnet/ws_sendmessage/sendmessage.asmx?wsdl" />
-    <MetadataFile FileName="sendmessage.disco" MetadataType="Disco" ID="47ed9e5f-2a59-4667-a631-6493e22bce84" SourceId="1" SourceUrl="http://brnet/ws_sendmessage/sendmessage.asmx?disco" />
+    <MetadataFile FileName="sendmessage.wsdl" MetadataType="Wsdl" ID="5d6cdf5f-ed36-47bc-b6a5-5807fbb17e52" SourceId="1" SourceUrl="http://brnet/ws_sendmessage/sendmessage.asmx?wsdl" />
+    <MetadataFile FileName="sendmessage.disco" MetadataType="Disco" ID="e089a439-6cc1-4ef1-a0cc-8988da9c5002" SourceId="1" SourceUrl="http://brnet/ws_sendmessage/sendmessage.asmx?disco" />
   </Metadata>
   <Extensions>
     <ExtensionFile FileName="configuration91.svcinfo" Name="configuration91.svcinfo" />

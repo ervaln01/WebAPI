@@ -1,6 +1,9 @@
 ﻿namespace IotManagerBusiness
 {
+	using IotManagerBusiness.Enums;
+
 	using System;
+	using System.Configuration;
 	using System.Data;
 
 	internal class DataOperations
@@ -25,12 +28,12 @@
 				ConnectionString = "testDBConnectionString";
 			}
 
-			RF_WIFI_COMPONENTCODE = MainSettings.Default.RF_WIFI_COMPONENTCODE;
-			WM_ELCARD_STATION = MainSettings.Default.WM_ELCARD_STATION;
-			CONNECTIVITY_CARD_LENGTH = MainSettings.Default.CONNECTIVITY_CARD_LENGTH;
+			RF_WIFI_COMPONENTCODE = ConfigurationManager.AppSettings["RF_WIFI_COMPONENTCODE"];
+			WM_ELCARD_STATION = ConfigurationManager.AppSettings["WM_ELCARD_STATION"];
+			CONNECTIVITY_CARD_LENGTH = ConfigurationManager.AppSettings["CONNECTIVITY_CARD_LENGTH"];
 		}
 
-		public void DeleteFromBarcodeTables(string productType, string cardBarcode)
+		public void DeleteFromBarcodeTables(ProductType productType, string cardBarcode)
 		{
 			var DbL = new DbLayer(ConnectionString);
 
@@ -42,14 +45,14 @@
 				DbL.ExecuteCommandWithinTransaction(sqlQuery, CommandType.Text);
 				DbL.CommitTransaction();
 			}
-			catch (Exception)
+			catch
 			{
 				DbL.RollbackTransaction();
 				throw;
 			}
 		}
 
-		public void InsertIntoBarcodeTables(string productType, string newCardMaterial, string newCardBarcode, string newCardModel, string productNumber, string productSerial)
+		public void InsertIntoBarcodeTables(ProductType productType, string newCardBarcode, string productNumber, string productSerial)
 		{
 			var DbL = new DbLayer(ConnectionString);
 
@@ -62,14 +65,14 @@
 				DbL.ExecuteCommandWithinTransaction(sqlQuery, CommandType.Text);
 				DbL.CommitTransaction();
 			}
-			catch (Exception)
+			catch
 			{
 				DbL.RollbackTransaction();
 				throw;
 			}
 		}
 
-		public void InsertIntoQueueTable(string productType, string cardBarcode, string productNumber, string productSerial, bool isInstant)
+		public void InsertIntoQueueTable(ProductType productType, string cardBarcode, string productNumber, string productSerial, bool isInstant)
 		{
 			var DbL = new DbLayer(ConnectionString);
 
@@ -100,7 +103,7 @@
 				DbL.ExecuteCommandWithinTransaction(sqlQuery1, CommandType.Text);
 				DbL.CommitTransaction();
 			}
-			catch (Exception)
+			catch
 			{
 				DbL.RollbackTransaction();
 			}
@@ -117,39 +120,10 @@
 				DbL.ExecuteCommandWithinTransaction(sqlQuery1, CommandType.Text);
 				DbL.CommitTransaction();
 			}
-			catch (Exception)
+			catch
 			{
 				DbL.RollbackTransaction();
 			}
-		}
-		public DataTable GetElectronicCardList(int currentPage, int pageSize, string searchText, string searchBy)
-		{
-			var DbL = new DbLayer(ConnectionString);
-			var sqlQuery = string.Empty;
-			string searchSQL;
-			if (searchBy.Equals("WM"))
-			{
-				searchSQL = string.IsNullOrEmpty(searchText) ? "" : $" AND (PRODUCT LIKE '%{searchText}%' OR SERIAL LIKE '%{searchText}%' OR (PRODUCT+''+SERIAL) LIKE '%{searchText}%' OR DISPLAY_CARD LIKE '%{searchText}%')";
-
-				sqlQuery = "SELECT 'WM' AS [ProductType], PRODUCT AS [ProductNumber], SERIAL AS [ProductSerial]" +
-				", NULL AS [ProductCardMaterial], [DISPLAY_CARD] AS [ProductCardBarcode], NULL AS [ProductCardModel] " +
-				" FROM [BekoLLCSQL].[dbo].[T_KKTS_CONNECTED_DISPLAY_CARD] WITH (NOLOCK) " +
-				$" WHERE (LINE = 2) {searchSQL}" +
-				$" ORDER BY INSERT_TIME DESC OFFSET ({currentPage}-1)*{pageSize} ROWS FETCH NEXT {pageSize} ROWS ONLY";
-				
-			}
-			else if (searchBy.Equals("REF"))
-			{
-				searchSQL = string.IsNullOrEmpty(searchText) ? "" : $" AND (PRODUCT LIKE '%{searchText}%' OR SERIAL LIKE '%{searchText}%' OR (PRODUCT+''+SERIAL) LIKE '%{searchText}%' OR MATERIAL LIKE '%{searchText}%' OR BARCODE LIKE '%{searchText}%' OR MODEL LIKE '%{searchText}%')";
-
-				sqlQuery = "SELECT 'REF' AS [ProductType], [PRODUCT] AS [ProductNumber], [SERIAL] AS [ProductSerial], [MATERIAL] AS [ProductCardMaterial]" +
-				", [BARCODE] AS [ProductCardBarcode], [MODEL] AS [ProductCardModel] " +
-				" FROM [BekoLLCSQL].[dbo].[KKI_MATCH] WITH (NOLOCK) " +
-				$" WHERE (COMPONENTCODE = '{RF_WIFI_COMPONENTCODE}') AND (LEN(BARCODE) = {CONNECTIVITY_CARD_LENGTH}) {searchSQL}" +
-				$" ORDER BY SYSDATE DESC OFFSET ({currentPage}-1)*{pageSize} ROWS FETCH NEXT {pageSize} ROWS ONLY";
-			}
-
-			return DbL.GetDataTable(sqlQuery, CommandType.Text);
 		}
 		public DataTable GetElectronicCard(string productSerial)
 		{
@@ -174,11 +148,7 @@
 			var DbL = new DbLayer(ConnectionString);
 			return DbL.GetDataTable(sqlQuery, CommandType.Text);
 		}
-		public DataTable GetUserData(string userID)
-		{
-			var DbL = new DbLayer(ConnectionString);
-			return DbL.GetDataTable($"SELECT UserID FROM [dbo].[T_KKTS_IOT_ADMIN] where UserID = '{userID}' AND Active = 1", CommandType.Text);
-		}
+
 		public DataTable GetProductData(string productNumber)
 		{
 			var DbL = new DbLayer(ConnectionString);

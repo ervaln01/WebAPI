@@ -11,7 +11,7 @@
     <ProjectTypeGuids>{349c5851-65df-11da-9384-00065b846f21};{fae04ec0-301f-11d3-bf4b-00c04f79efbc}</ProjectTypeGuids>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>iotManagerAPI</RootNamespace>
+    <RootNamespace>IotManagerAPI</RootNamespace>
     <AssemblyName>iotManagerAPI</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <UseIISExpress>true</UseIISExpress>
@@ -73,16 +73,16 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Connected Services\EmailSender\iotManagerAPI.EmailSender.SendEmailResponse.datasource">
+    <Content Include="Connected Services\EmailSender\IotManagerAPI.EmailSender.SendEmailResponse.datasource">
       <DependentUpon>Reference.svcmap</DependentUpon>
     </Content>
-    <Content Include="Connected Services\EmailSender\iotManagerAPI.EmailSender.SendEmail_v1Response.datasource">
+    <Content Include="Connected Services\EmailSender\IotManagerAPI.EmailSender.SendEmail_v1Response.datasource">
       <DependentUpon>Reference.svcmap</DependentUpon>
     </Content>
-    <Content Include="Connected Services\EmailSender\iotManagerAPI.EmailSender.SendEmail_v2Response.datasource">
+    <Content Include="Connected Services\EmailSender\IotManagerAPI.EmailSender.SendEmail_v2Response.datasource">
       <DependentUpon>Reference.svcmap</DependentUpon>
     </Content>
-    <Content Include="Connected Services\EmailSender\iotManagerAPI.EmailSender.SendSmsResponse.datasource">
+    <Content Include="Connected Services\EmailSender\IotManagerAPI.EmailSender.SendSmsResponse.datasource">
       <DependentUpon>Reference.svcmap</DependentUpon>
     </Content>
     <None Include="Connected Services\EmailSender\sendmessage.disco" />
@@ -105,6 +105,7 @@
       <DependentUpon>iotManagerService.asmx</DependentUpon>
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="MailSender.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

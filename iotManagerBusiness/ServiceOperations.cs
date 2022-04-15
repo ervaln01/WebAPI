@@ -1,5 +1,8 @@
 ﻿namespace IotManagerBusiness
 {
+	using IotManagerBusiness.Enums;
+	using IotManagerBusiness.Models;
+
 	using Newtonsoft.Json;
 
 	using System;
@@ -34,7 +37,7 @@
 			Token = GetToken();
 		}
 
-		public Tuple<bool, string> DeAttachProductCardData(string productNumber, string cardbarcode, string productserial)
+		public Response<string> DeAttachProductCardData(string productNumber, string cardbarcode, string productserial)
 		{
 			using (var httpClient = new HttpClient())
 			{
@@ -51,14 +54,12 @@
 				var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
 				var response = httpClient.PostAsync("api/CardData/DeAttachProductCardMatch", httpContent).Result.Content.ReadAsStringAsync().Result;
 
-				var result = JsonConvert.DeserializeObject<ReturnModel<string>>(response);
-				var success = result.Status == ReturnTypeStatus.Success;
-
-				return new Tuple<bool, string>(success, success ? result.Message : $"Error during deattachment. Status code: {result.Status} - Message: {result.Message}");
+				var result = JsonConvert.DeserializeObject<Response<string>>(response);
+				return result;
 			}
 		}
 
-		public Tuple<bool, string> AttachProductCardData(string productType, string productNumber, string cardbarcode, string productserial, string productBrand, string productConnectivity)
+		public Response<string> AttachProductCardData(ProductType productType, string productNumber, string cardbarcode, string productserial, string productBrand, string productConnectivity)
 		{
 			using (var httpClient = new HttpClient())
 			{
@@ -79,10 +80,8 @@
 				var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
 				var response = httpClient.PostAsync("api/CardData/AddProductCardDataMatch", httpContent).Result.Content.ReadAsStringAsync().Result;
 
-				var result = JsonConvert.DeserializeObject<ReturnModel<string>>(response);
-				var success = result.Status == ReturnTypeStatus.Success;
-
-				return new Tuple<bool, string>(success, success ? result.Message : $"Error during attachment. Status code: {result.Status} - Message: {result.Message}");
+				var result = JsonConvert.DeserializeObject<Response<string>>(response);
+				return result;
 			}
 		}
 

@@ -1,7 +1,9 @@
 ﻿namespace IotManagerBusiness
 {
+	using IotManagerBusiness.Enums;
+	using IotManagerBusiness.Exceptions;
+
 	using System;
-	using System.Data;
 	using System.Linq;
 
 	public class BusinessOperations
@@ -10,7 +12,7 @@
 
 		public BusinessOperations(string env) => Environment = env;
 
-		public void DeAttachElectronicCard(string productType, string productNumber, string cardBarcode, string productSerial, string operatingUser)
+		public void DeAttachElectronicCard(ProductType productType, string productNumber, string cardBarcode, string productSerial, string operatingUser)
 		{
 			var dop = new DataOperations(Environment);
 
@@ -18,7 +20,7 @@
 			{
 				var sop = new ServiceOperations(Environment);
 				var res = sop.DeAttachProductCardData(productNumber, cardBarcode, productSerial);
-				if (!res.Item1) throw new AzureException(res.Item2);
+				if (res.Status != StatusType.Success) throw new AzureException($"Error during deattachment. Status code: {res.Status} - Message: {res.Message}");
 
 				dop.DeleteFromBarcodeTables(productType, cardBarcode);
 				dop.LogOperation("DeAttach", "S", $"Deattach successful. Card: {cardBarcode}- Product: {productSerial}", operatingUser);
@@ -30,7 +32,7 @@
 			}
 		}
 
-		public void AttachElectronicCard(string productType, string newCardMaterial, string newCardBarcode, string newCardModel, string productNumber, string productSerial, string operatingUser, bool cardExistsinDB)
+		public void AttachElectronicCard(ProductType productType, string newCardBarcode, string productNumber, string productSerial, string operatingUser, bool cardExistsinDB)
 		{
 			var dop = new DataOperations(Environment);
 
@@ -39,7 +41,7 @@
 				var productData = GetProductDetails(productNumber);
 				var sop = new ServiceOperations(Environment);
 				var res = sop.AttachProductCardData(productType, productNumber, newCardBarcode, productSerial, productData[0], productData[1]);
-				if (!res.Item1) throw new AzureException(res.Item2);
+				if (res.Status != StatusType.Success) throw new AzureException($"Error during attachment. Status code: {res.Status} - Message: {res.Message}");
 
 				if (cardExistsinDB)
 				{
@@ -47,7 +49,7 @@
 				}
 				else
 				{
-					dop.InsertIntoBarcodeTables(productType, newCardMaterial, newCardBarcode, newCardModel, productNumber, productSerial);
+					dop.InsertIntoBarcodeTables(productType, newCardBarcode, productNumber, productSerial);
 				}
 
 				dop.LogOperation("Attach", "S", $"Attach successful. Card: {newCardBarcode}- Product: {productSerial}", operatingUser);
@@ -59,7 +61,7 @@
 			}
 		}
 
-		public void AttachElectronicCardFromProduction(string productType, string productNumber, string productSerial, string integrationType, string operatingUser)
+		public void AttachElectronicCardFromProduction(ProductType productType, string productNumber, string productSerial, IntegrationType integrationType, string operatingUser)
 		{
 			var dop = new DataOperations(Environment);
 
@@ -70,14 +72,14 @@
 
 				switch (integrationType)
 				{
-					case "Instant":
+					case IntegrationType.Instant:
 						var sop = new ServiceOperations(Environment);
 						var res = sop.AttachProductCardData(productType, cardData[0], cardData[2], productSerial, productData[0], productData[1]);
-						if (!res.Item1) throw new AzureException(res.Item2);
+						if (res.Status != StatusType.Success) throw new AzureException($"Error during attachment. Status code: {res.Status} - Message: {res.Message}");
 
 						dop.InsertIntoQueueTable(productType, cardData[2], cardData[0], productSerial, true);
 						break;
-					case "Queue":
+					case IntegrationType.Queue:
 						dop.InsertIntoQueueTable(productType, cardData[2], cardData[0], productSerial, false);
 						break;
 					default:
@@ -93,7 +95,7 @@
 			}
 		}
 
-		public void UpdateErrorDisplayCard(string productType, string product, string serial, string operatingUser, string card = "")
+		public void UpdateErrorDisplayCard(ProductType productType, string product, string serial, string operatingUser, string card = "")
 		{
 			var dop = new DataOperations(Environment);
 			if (string.IsNullOrEmpty(card)) 
@@ -107,50 +109,6 @@
 			catch (Exception ex)
 			{
 				dop.LogOperation("UpdateErrorDisplayCard", "E", "UpdateErrorDisplayCard Error.", ex.Message);
-			}
-		}
-
-		public DataTable GetElectronicCards(int currentPage, int pageSize, string searchText, string searchBy)
-		{
-			var dop = new DataOperations(Environment);
-
-			try
-			{
-				return dop.GetElectronicCardList(currentPage, pageSize, searchText, searchBy);
-			}
-			catch (Exception ex)
-			{
-				dop.LogOperation("GetList", "E", "GetList Error.", ex.Message);
-				throw;
-			}
-		}
-		public DataTable GetElectronicCard(string productSerial)
-		{
-			var dop = new DataOperations(Environment);
-
-			try
-			{
-				return dop.GetElectronicCard(productSerial);
-			}
-			catch (Exception ex)
-			{
-				dop.LogOperation("GetList", "E", "GetList Error.", ex.Message);
-				throw;
-			}
-		}
-		public bool ControlUserAccess(string userID)
-		{
-			var dop = new DataOperations(Environment);
-
-			try
-			{
-				var userDT = dop.GetUserData(userID.ToUpper());
-				return userDT.Rows.Count > 0;
-			}
-			catch (Exception ex)
-			{
-				dop.LogOperation("ControlUserAccess", "E", "ControlUserAccess Error.", ex.Message);
-				throw;
 			}
 		}
 
@@ -184,7 +142,7 @@
 				throw;
 			}
 		}
-		public string[] GetCardDetails(string productType, string productNumber, string productSerial)
+		public string[] GetCardDetails(ProductType productType, string productNumber, string productSerial)
 		{
 			var dop = new DataOperations(Environment);
 
